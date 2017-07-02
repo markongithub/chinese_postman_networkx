@@ -7,9 +7,15 @@ import osmgraph
 def neighbors(graph, n0):
   return [(n1, graph[n0][n1].get('name'), graph.node[n1].get('coordinate')) for n1 in graph[n0]]
 
+def get_edge_somehow(graph, n0, n1):
+  # this is stupid and I hate myself even more for writing it
+  if 0 in graph[n0][n1]:
+    return graph[n0][n1][0]
+  else:
+    return graph[n0][n1]
+  
 def adjoining_streets(graph, n0):
-  # won't work with multigraphs
-  return set([graph[n0][n1].get('name')  for n1 in graph[n0]])
+  return set([get_edge_somehow(graph, n0, n1).get('name')  for n1 in graph[n0]])
 
 def latitude(graph, n0):
   return graph.node[n0].get('coordinate')[1]
@@ -109,22 +115,18 @@ def format_list(string_iterable):
     return '%s & %s' % (string_list[0], string_list[1])
   return '%s, and %s' % (str.join(', ', string_list[:-1]), string_list[-1])
 
-def optimize_dead_ends(g):
-  print "There are %s dead ends in this graph." % len(dead_ends(g))
-  for node in dead_ends(g):
+def optimize_dead_ends(in_g, out_g):
+  print "There are %s dead ends and %s odd-degree nodes in this graph." % (
+      len(dead_ends(in_g)), len(odd_nodes(in_g)))
+  for node in dead_ends(in_g):
     new_from = node
-    new_to = g[node].keys()[0]
-    print "I will OPTIMIZE by adding an edge from %s to %s" % (new_from, new_to)
-    if 'length' not in g[new_from][new_to][0]:
-      print "Why does this lack a distance? %s" % g[new_from][new_to]
-    new_weight = g[new_from][new_to][0]['length']
-    if 'name' in g[new_to][new_from][0]:
-      new_name = '%s (added as backtracker)' % g[new_from][new_to][0]['name']
-    else:
-      new_name = 'nameless backtracker edge' 
-    g.add_edge(new_from, new_to, name=new_name, length=new_weight)
-  print "There are now %s dead ends in this graph." % len(dead_ends(g))
-  print "There are now %s odd nodes in this graph." % len(odd_nodes(g))
+    new_to = next(n for n in networkx.dfs_preorder_nodes(
+        in_g, node) if len(set(adjoining_streets(in_g,n))) > 1)
+    print "I will optimize by adding an edge from %s to %s" % (
+        in_g.node[new_from]['pretty_name'], in_g.node[new_to]['pretty_name'])
+    add_artificial_edge(in_g, out_g, new_from, new_to)
+  print "There are now %s dead ends and %s odd-degree nodes in this graph." % (
+      len(dead_ends(out_g)), len(odd_nodes(out_g)))
 
 def graph_of_odd_nodes(g):
   out_graph = networkx.Graph()
@@ -167,7 +169,7 @@ def dijkstra_single_source_multi_target(g, source, targets):
 
 def add_edges_for_euler(in_g):
   out_g = networkx.MultiGraph(data=in_g)
-  optimize_dead_ends(out_g)
+  optimize_dead_ends(in_g, out_g)
   temp_graph = graph_of_odd_nodes(out_g)
   print "Finished calculating shortest paths, now calculating matching..."
   matching = networkx.max_weight_matching(temp_graph, maxcardinality=True)
@@ -177,20 +179,23 @@ def add_edges_for_euler(in_g):
     if k not in short_matching and matching[k] not in short_matching:
       short_matching[k] = matching[k]
   for source in short_matching:
-    new_path = networkx.dijkstra_path(in_g, source=source, target=short_matching[source], weight='length')
-    new_path_streets = []
-    new_path_length = 0
-    for i in range(1, len(new_path)):
-      new_from = new_path[i - 1]
-      new_to = new_path[i]
-      new_path_length += in_g[new_from][new_to]['length']
-      new_path_streets.append(in_g[new_from][new_to].get('name'))
-    if len(set(new_path_streets)) == 1:
-      new_edge_name = new_path_streets[0]
-    else:
-      new_edge_name = "the confusing route of %s" % format_list(set(new_path_streets))
-    out_g.add_edge(source, short_matching[source], name=new_edge_name, length=new_path_length)
+    add_artificial_edge(in_g, out_g, source, short_matching[source])
   return out_g
+
+def add_artificial_edge(in_g, out_g, source, target):
+  new_path = networkx.dijkstra_path(in_g, source=source, target=target, weight='length')
+  new_path_streets = []
+  new_path_length = 0
+  for i in range(1, len(new_path)):
+    hop_source = new_path[i - 1]
+    hop_target = new_path[i]
+    new_path_length += in_g[hop_source][hop_target]['length']
+    new_path_streets.append(in_g[hop_source][hop_target].get('name'))
+  if len(set(new_path_streets)) == 1:
+    new_edge_name = new_path_streets[0]
+  else:
+    new_edge_name = "the confusing route of %s" % format_list(set(new_path_streets))
+  out_g.add_edge(source, target, name=new_edge_name, length=new_path_length)
 
 def get_and_format_circuit(g, source=None):
   circuit = list(networkx.eulerian_circuit(g, source=source))
