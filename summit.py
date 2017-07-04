@@ -67,7 +67,7 @@ def summit_fixes(g):
 
   # Having cut off the borders, we cull everything unreachable from within the
   # borders.
-  town_nodes = set(networkx.dfs_preorder_nodes(g, 2522233328))
+  town_nodes = set(networkx.dfs_preorder_nodes(g, 105432048))
   non_town_nodes = set(g.nodes()) - town_nodes
   for node in non_town_nodes:
     g.remove_node(node)
@@ -84,6 +84,6 @@ make_summit = lambda: cpl.make_graph(summit_filename, summit_fixes)
 if __name__ == '__main__':
   g = cpl.make_graph(summit_filename, summit_fixes)
   eulerian_graph = cpl.add_edges_for_euler(g)
-  cpl.get_and_format_circuit(eulerian_graph)
+  cpl.get_and_format_circuit(eulerian_graph, 105432048)
 
 
