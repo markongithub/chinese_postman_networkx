@@ -41,6 +41,8 @@ def summit_fixes(g):
         ('Main Street' in streets and lon < -74.371891) or
         ('Hobart Gap Road' in streets and 'Hobart Avenue' not in streets) or
         ('Overhill Road' in streets and 'Mountain Avenue' not in streets) or
+        # This isn't in the tax map so I am declaring it not a real street.
+        ('Old Coach Road' in streets and 'Baltusrol Road' not in streets) or
         # See below for Morris Turnpike border.
         ('Morris Turnpike' in streets and lon > -74.331790)):
        nodes_to_purge.append(node)
