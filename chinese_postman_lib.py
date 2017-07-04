@@ -204,20 +204,63 @@ def get_and_format_circuit(g, source=None):
 
 def format_circuit(g, circuit):
   total_distance = 0.0
+
+  # Once more unto this breach.
+  segment_distance = 0.0
+  segment_street = None
+  segment_direction = None
+  segment_origin = None
+
   for (n1, n2) in circuit:
     lon1, lat1 = g.node[n1].get('coordinate')
     lon2, lat2 = g.node[n2].get('coordinate')
     print "DEBUG: %s (%s,%s) -> %s (%s,%s)" % (n1, lat1, lon1, n2, lat2, lon2)
-    edge_length = g.get_edge_data(n1, n2, 0)['length']
-    total_distance += edge_length
+    current_distance = g.get_edge_data(n1, n2, 0)['length']
+    total_distance += current_distance
+    segment_distance += current_distance
+
     if 'name' in g.get_edge_data(n1, n2, 0):
-      visible_name = g.get_edge_data(n1, n2, 0)['name']
+      current_street = g.get_edge_data(n1, n2, 0)['name']
     else:
-      visible_name = 'Nameless Way'
-    if g.node[n1]['pretty_name'].startswith("a point on") and g.node[n1]['pretty_name'] == g.node[n2]['pretty_name']:
-      print "Continue %s on %s (%dm)" % (cardinal_direction(g, n1, n2), visible_name, int(round(edge_length)))
-    else: # print it and reset variables
-      print "Take %s %s to %s (%dm)" % (visible_name, cardinal_direction(g, n1, n2), g.node[n2]['pretty_name'], int(round(edge_length)))
+      current_street = 'Nameless Way'
+    current_direction = cardinal_direction(g, n1, n2)
+
+    if (segment_street == current_street) and g.node[n2]['pretty_name'].startswith("a point on") and segment_direction == current_direction:
+      continue
+    # Okay now what. we know that either it's a new street OR we've arrived at
+    # an intersection OR we've changed direction
+    if (segment_street == current_street) and g.node[n2]['pretty_name'].startswith("a point on"):
+      # We have only changed direction.
+      print "Take %s %s (%dm)" % (segment_street, segment_direction, int(round(segment_distance)))
+      segment_direction = current_direction
+      segment_distance = 0.0
+      segment_origin = n1
+      # segment_street remains the same
+      continue
+    if (segment_street == current_street):
+      # We have arrived at an intersection or dead end. The segment is over.
+      # Print it.
+      print "Take %s %s to %s (%dm)" % (segment_street, segment_direction, g.node[n2]['pretty_name'], int(round(segment_distance)))
+      segment_direction = None
+      segment_distance = 0.0
+      segment_origin = None
+      segment_street = None
+      continue
+
+    # We have begun traversing a new street. Since we are leaving an
+    # intersection we can assume we already printed the last edge.
+    segment_direction = current_direction
+    segment_origin = n1
+    segment_street = current_street
+    if g.node[n2]['pretty_name'].startswith("a point on"):
+      continue
+    # We are leaving an interesting node and hopping directly to another.
+    print "Take %s %s to %s (%dm)" % (segment_street, segment_direction, g.node[n2]['pretty_name'], int(round(segment_distance)))
+    segment_direction = None
+    segment_distance = 0.0
+    segment_origin = None
+    segment_street = None
+
   print "Total distance was %dm" % int(round(total_distance))
 
 def cardinal_direction(g, source, dest):
