@@ -59,6 +59,6 @@ ch_filename="/home/mark/git/chinese_postman/data/chestnut_hill.osm"
 if __name__ == '__main__':
   g = cpl.make_graph(ch_filename, ch_fixes)
   eulerian_graph = cpl.add_edges_for_euler(g)
-  cpl.get_and_format_circuit(eulerian_graph)
+  cpl.get_and_format_circuit(eulerian_graph, 110358237)
 
 
