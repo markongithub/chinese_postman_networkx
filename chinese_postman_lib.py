@@ -204,7 +204,7 @@ def get_and_format_circuit(g, source=None):
 
 def format_circuit(g, circuit):
   total_distance = 0.0
-
+  first_edge = True
   # Once more unto this breach.
   segment_distance = 0.0
   segment_street = None
@@ -212,6 +212,9 @@ def format_circuit(g, circuit):
   segment_origin = None
 
   for (n1, n2) in circuit:
+    if first_edge:
+      print "Begin at %s" % g.node[n1]['pretty_name']
+      first_edge = False
     lon1, lat1 = g.node[n1].get('coordinate')
     lon2, lat2 = g.node[n2].get('coordinate')
     print "DEBUG: %s (%s,%s) -> %s (%s,%s)" % (n1, lat1, lon1, n2, lat2, lon2)
