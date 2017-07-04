@@ -63,7 +63,7 @@ def summit_fixes(g):
       for neighbor in g[node]:
         neighbor_streets = cpl.adjoining_streets(g, neighbor)
         if 'Division Avenue' not in neighbor_streets and 'Old Springfield Avenue' not in neighbor_streets and cpl.longitude(g, neighbor) < lon:
-          print "I will purge node %s (%s,%s) on %s because it is west from Division Avenue node %s (%s,%s)." % (neighbor, cpl.latitude(g, neighbor), cpl.longitude(g, neighbor), neighbor_streets, node, lat, lon)
+          print "DEBUG: I will purge node %s (%s,%s) on %s because it is west from Division Avenue node %s (%s,%s)." % (neighbor, cpl.latitude(g, neighbor), cpl.longitude(g, neighbor), neighbor_streets, node, lat, lon)
           nodes_to_purge.append(neighbor)
     elif 'Morris Turnpike' in streets:
       # Anything emerging from Morris Turnpike to the north is Springfield or
@@ -71,7 +71,7 @@ def summit_fixes(g):
       for neighbor in g[node]:
         neighbor_streets = cpl.adjoining_streets(g, neighbor)
         if 'Morris Turnpike' not in neighbor_streets and cpl.latitude(g, neighbor) > lat:
-          print "I will purge node %s (%s,%s) on %s because it is north from Morris Turnpike node %s (%s,%s)." % (neighbor, cpl.latitude(g, neighbor), cpl.longitude(g, neighbor), neighbor_streets, node, lat, lon)
+          print "DEBUG: I will purge node %s (%s,%s) on %s because it is north from Morris Turnpike node %s (%s,%s)." % (neighbor, cpl.latitude(g, neighbor), cpl.longitude(g, neighbor), neighbor_streets, node, lat, lon)
           nodes_to_purge.append(neighbor)
 
   for node in set(nodes_to_purge):

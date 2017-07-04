@@ -37,7 +37,7 @@ def make_graph(filename, purge_func=default_purge):
   purge_func(g)
 
   all_edge_names = set([g[n1][n2].get('name') for (n1, n2) in g.edges()])
-  print "We are left with these %s streets: %s" % (len(all_edge_names), sorted(all_edge_names)
+  print "DEBUG: We are left with these %s streets: %s" % (len(all_edge_names), sorted(all_edge_names)
 )
   # If a node has been isolated, just remove it for efficiency.
   for n1 in list(g.nodes()):
@@ -116,25 +116,25 @@ def format_list(string_iterable):
   return '%s, and %s' % (str.join(', ', string_list[:-1]), string_list[-1])
 
 def optimize_dead_ends(in_g, out_g):
-  print "There are %s dead ends and %s odd-degree nodes in this graph." % (
+  print "DEBUG: There are %s dead ends and %s odd-degree nodes in this graph." % (
       len(dead_ends(in_g)), len(odd_nodes(in_g)))
   for node in dead_ends(in_g):
     new_from = node
     new_to = next(n for n in networkx.dfs_preorder_nodes(
         in_g, node) if len(set(adjoining_streets(in_g,n))) > 1)
-    print "I will optimize by adding an edge from %s to %s" % (
+    print "DEBUG: I will optimize by adding an edge from %s to %s" % (
         in_g.node[new_from]['pretty_name'], in_g.node[new_to]['pretty_name'])
     add_artificial_edge(in_g, out_g, new_from, new_to)
-  print "There are now %s dead ends and %s odd-degree nodes in this graph." % (
+  print "DEBUG: There are now %s dead ends and %s odd-degree nodes in this graph." % (
       len(dead_ends(out_g)), len(odd_nodes(out_g)))
 
 def graph_of_odd_nodes(g):
   out_graph = networkx.Graph()
   nodes = odd_nodes(g)
   num_odd_nodes = len(nodes)
-  print "We will have to add edges to fill in %s odd-degree nodes." % num_odd_nodes
+  print "DEBUG: We will have to add edges to fill in %s odd-degree nodes." % num_odd_nodes
   for i1 in range(len(nodes)):
-    print "Starting SSSP lengths for index %s/%s" % (i1, num_odd_nodes)
+    print "DEBUG: Starting SSSP lengths for index %s/%s" % (i1, num_odd_nodes)
     source = nodes[i1]
     targets = [nodes[i2] for i2 in range(i1 + 1, len(nodes))]
     lengths = dijkstra_single_source_multi_target(g, source, targets)
@@ -163,7 +163,7 @@ def dijkstra_single_source_multi_target(g, source, targets):
         heapq.heappush(q, (alt, v))
         remaining_targets.discard(v)
   if remaining_targets:
-    print "We failed to find these: %s" % remaining_targets
+    print "DEBUG: We failed to find these: %s" % remaining_targets
   output = {k: dist[k] for k in targets}
   return output
 
@@ -171,9 +171,9 @@ def add_edges_for_euler(in_g):
   out_g = networkx.MultiGraph(data=in_g)
   optimize_dead_ends(in_g, out_g)
   temp_graph = graph_of_odd_nodes(out_g)
-  print "Finished calculating shortest paths, now calculating matching..."
+  print "DEBUG: Finished calculating shortest paths, now calculating matching..."
   matching = networkx.max_weight_matching(temp_graph, maxcardinality=True)
-  print "Finished calculating matching, now adding new edges..."
+  print "DEBUG: Finished calculating matching, now adding new edges..."
   short_matching = {}
   for k in matching:
     if k not in short_matching and matching[k] not in short_matching:
@@ -199,7 +199,7 @@ def add_artificial_edge(in_g, out_g, source, target):
 
 def get_and_format_circuit(g, source=None):
   circuit = list(networkx.eulerian_circuit(g, source=source))
-  print circuit
+  print "DEBUG: %s" % circuit
   format_circuit(g, circuit)
 
 def format_circuit(g, circuit):

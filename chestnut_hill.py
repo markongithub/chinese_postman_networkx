@@ -36,12 +36,12 @@ def ch_fixes(g):
     elif 'Stenton Avenue' in streets:
       for neighbor in g[node]:
         if 'Stenton Avenue' not in cpl.adjoining_streets(g, neighbor) and cpl.latitude(g, neighbor) > lat:
-          print "I will purge node %s (%s,%s) on %s because it is north from Stenton node %s (%s,%s)." % (neighbor, cpl.latitude(g, neighbor), cpl.longitude(g, neighbor), cpl.adjoining_streets(g, neighbor), node, lat, lon)
+          print "DEBUG: I will purge node %s (%s,%s) on %s because it is north from Stenton node %s (%s,%s)." % (neighbor, cpl.latitude(g, neighbor), cpl.longitude(g, neighbor), cpl.adjoining_streets(g, neighbor), node, lat, lon)
           nodes_to_purge.append(neighbor)
     elif 'Northwestern Avenue' in streets:
       for neighbor in g[node]:
         if 'Northwestern Avenue' not in cpl.adjoining_streets(g, neighbor) and cpl.longitude(g, neighbor) < lon:
-          print "I will purge a node on %s because it is west from Northwestern." % cpl.adjoining_streets(g, neighbor)
+          print "DEBUG: I will purge a node on %s because it is west from Northwestern." % cpl.adjoining_streets(g, neighbor)
           nodes_to_purge.append(neighbor)
 
   for node in set(nodes_to_purge):
