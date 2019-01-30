@@ -27,13 +27,21 @@ def default_purge(graph):
   # This is just the identity function. But it might get overridden.
   pass
 
-def make_graph(filename, purge_func=default_purge):
-  g = osmgraph.parse_file(filename).to_undirected()
+def make_graphs(filename, purge_func=default_purge):
+  pure_g = osmgraph.parse_file(filename).to_undirected()
 
-  names = make_node_dict(g)
-  for n1 in g:
-    g.node[n1]['pretty_name'] = names[n1]
-  
+  names = make_node_dict(pure_g)
+  for n1 in pure_g:
+    pure_g.node[n1]['pretty_name'] = names[n1]
+
+  # Assign lengths to all edges, even the ones we are going to purge.
+  for n1, n2 in pure_g.edges_iter():
+    c1, c2 = osmgraph.tools.coordinates(pure_g, (n1, n2))   
+    pure_g[n1][n2]['length'] = geog.distance(c1, c2)
+
+  # Never modify pure_g again.
+  g = pure_g.copy()
+
   purge_func(g)
 
   all_edge_names = set([g[n1][n2].get('name') for (n1, n2) in g.edges()])
@@ -44,20 +52,16 @@ def make_graph(filename, purge_func=default_purge):
     if len(g[n1]) == 0:
       g.remove_node(n1)
 
-  # Assign lengths to edges we didn't purge.
-  for n1, n2 in g.edges_iter():
-    c1, c2 = osmgraph.tools.coordinates(g, (n1, n2))   
-    g[n1][n2]['length'] = geog.distance(c1, c2)
-
-  assert(networkx.is_connected(g))
+  # assert(networkx.is_connected(g))
 
   # It's inefficient to do this twice but we kind of need it earlier for
   # debugging, but the names are prettier after purging.
   names = make_node_dict(g)
   for n1 in g:
     g.node[n1]['pretty_name'] = names[n1]
-  
-  return g
+ 
+  out_g = networkx.MultiGraph(data=g) 
+  return pure_g, out_g
 
 def nodes_from_line(in_g, lat1, lon1, lat2, lon2, south=True):
   m = (lat1 - lat2) / (lon1 - lon2)
@@ -113,7 +117,7 @@ def format_list(string_iterable):
     return string_list[0]
   if len(string_list) == 2:
     return '%s & %s' % (string_list[0], string_list[1])
-  return '%s, and %s' % (str.join(', ', string_list[:-1]), string_list[-1])
+  return '%s, and %s' % (str.join(', ', map(str, string_list[:-1])), string_list[-1])
 
 def optimize_dead_ends(in_g, out_g):
   print "DEBUG: There are %s dead ends and %s odd-degree nodes in this graph." % (
@@ -128,16 +132,16 @@ def optimize_dead_ends(in_g, out_g):
   print "DEBUG: There are now %s dead ends and %s odd-degree nodes in this graph." % (
       len(dead_ends(out_g)), len(odd_nodes(out_g)))
 
-def graph_of_odd_nodes(g):
+def graph_of_odd_nodes(pure_g, reduced_g):
   out_graph = networkx.Graph()
-  nodes = odd_nodes(g)
+  nodes = odd_nodes(reduced_g)
   num_odd_nodes = len(nodes)
   print "DEBUG: We will have to add edges to fill in %s odd-degree nodes." % num_odd_nodes
   for i1 in range(len(nodes)):
     print "DEBUG: Starting SSSP lengths for index %s/%s" % (i1, num_odd_nodes)
     source = nodes[i1]
     targets = [nodes[i2] for i2 in range(i1 + 1, len(nodes))]
-    lengths = dijkstra_single_source_multi_target(g, source, targets)
+    lengths = dijkstra_single_source_multi_target(pure_g, source, targets)
     for target in lengths:
       out_graph.add_edge(source, target, weight=(-1 * lengths[target]))
   return out_graph
@@ -156,7 +160,7 @@ def dijkstra_single_source_multi_target(g, source, targets):
   while q and remaining_targets:
     du, u = heapq.heappop(q)
     for v in g[u]:
-      alt = du + g[u][v][0]['length']
+      alt = du + g[u][v]['length']
       if (v not in dist) or (alt < dist[v]):
         dist[v] = alt
         prev[v] = u
@@ -167,10 +171,9 @@ def dijkstra_single_source_multi_target(g, source, targets):
   output = {k: dist[k] for k in targets}
   return output
 
-def add_edges_for_euler(in_g):
-  out_g = networkx.MultiGraph(data=in_g)
-  optimize_dead_ends(in_g, out_g)
-  temp_graph = graph_of_odd_nodes(out_g)
+def add_edges_for_euler(in_g, out_g):
+  # optimize_dead_ends(in_g, out_g)
+  temp_graph = graph_of_odd_nodes(in_g, out_g)
   print "DEBUG: Finished calculating shortest paths, now calculating matching..."
   matching = networkx.max_weight_matching(temp_graph, maxcardinality=True)
   print "DEBUG: Finished calculating matching, now adding new edges..."
@@ -180,7 +183,30 @@ def add_edges_for_euler(in_g):
       short_matching[k] = matching[k]
   for source in short_matching:
     add_artificial_edge(in_g, out_g, source, short_matching[source])
+  #assert(networkx.is_connected(out_g))
+  nodes = odd_nodes(out_g)
+  num_odd_nodes = len(nodes)
+  print "DEBUG: After all that we have %s odd-degree nodes." % num_odd_nodes
+#  reachable_nodes = set(networkx.dfs_preorder_nodes(out_g, 105437194))
+#  unreachable_nodes = set(out_g.nodes()) - reachable_nodes
+#  for n in unreachable_nodes:
+#    print "%s (%s) is unreachable." % (n, out_g.node[n]['pretty_name'])
+#    path = networkx.dijkstra_path(in_g, 105437194,  n, weight='length')
+#    print "Here is how we would get there on the original graph: %s" % [(pn, in_g.node[pn]['pretty_name']) for pn in path]
+#    print "Here are the nodes we have purged from that path: %s" % [(pn, in_g.node[pn]['pretty_name']) for pn in path if pn not in out_g]
+  if not networkx.is_connected(out_g):
+    print "The graph is still not connected. Components: %s" % [[(n, in_g.node[n]['pretty_name']) for n in comp] for comp in networkx.connected_components(out_g)]
   return out_g
+
+def components_closure(in_g, components):
+  g = in_g.copy()
+  fake_g = networkx.Graph()
+  i = 0
+  for component in components:
+    new_node_id = "component-%s" % i
+    g.add_node(new_node_id)
+    for node in component:
+      g.add_edge(new_node_id, node, name='fake edge for closure', length=0)
 
 def add_artificial_edge(in_g, out_g, source, target):
   new_path = networkx.dijkstra_path(in_g, source=source, target=target, weight='length')

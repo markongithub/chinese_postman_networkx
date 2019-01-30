@@ -7,10 +7,6 @@ def summit_fixes(g):
   for n1, n2 in g.edges_iter():
     if (not g[n1][n2].get('name')) or (g[n1][n2].get('highway') == 'path'):
       edges_to_purge.append((n1, n2))
-#    if g[n1][n2].get('name') == 'Stenton Ave':
-#      g[n1][n2]['name'] = 'Stenton Avenue'
-#    if g[n1][n2].get('name') == 'Northwestern Ave':
-#      g[n1][n2]['name'] = 'Northwestern Avenue'
   for n1, n2 in edges_to_purge:
      g.remove_edge(n1, n2)
 
@@ -54,7 +50,23 @@ def summit_fixes(g):
         # Old Coach isn't in the tax map so I am declaring it not a real street.
         ('Old Coach Road' in streets and 'Baltusrol Road' not in streets) or
         # See below for Morris Turnpike border.
-        ('Morris Turnpike' in streets and lon > -74.331790)):
+        ('Morris Turnpike' in streets and lon > -74.331790) or
+        # DELETE THESE
+        ('Washington Avenue' in streets and lon < -74.338762) or
+        ('Broad Street' in streets and lon > -74.333204) or
+        ('Overlook Road' in streets and lon < -74.358003) or
+        ('Willow Road' in streets and lat < 40.710930) or
+        ('Springfield Avenue' in streets and lon < -74.342829) or
+        ('Morris Avenue' in streets and lon < -74.352115) or
+        ('Broad Street' in streets and lon < -74.352051) or
+        (node == 4257932442) or
+        (('Clark Street' not in streets) and
+         ('Cottage Lane' not in streets) and
+#         ('Morris Avenue' not in streets) and
+         ('Orchard Street' not in streets) and
+         ('Overlook Road' not in streets) and
+         ('South Street' not in streets))):
+
        nodes_to_purge.append(node)
     elif 'Division Avenue' in streets:
       # Anything emerging from Division Avenue to the west is in Berkeley
@@ -79,18 +91,22 @@ def summit_fixes(g):
 
   # Having cut off the borders, we cull everything unreachable from within the
   # borders.
-  town_nodes = set(networkx.dfs_preorder_nodes(g, 105432048))
-  non_town_nodes = set(g.nodes()) - town_nodes
-  for node in non_town_nodes:
-    g.remove_node(node)
+#  town_nodes = set(networkx.dfs_preorder_nodes(g, 105486442))
+#  non_town_nodes = set(g.nodes()) - town_nodes
+#  for node in non_town_nodes:
+#    g.remove_node(node)
+  hawthorne_edges = [(n1, n2) for (n1, n2) in g.edges() if g[n1][n2].get('name') == 'Hawthorne Place']
+  if hawthorne_edges:
+    h_node = hawthorne_edges[0][0]
+    print "Your leak is in here: %s" % [g.node[node]['pretty_name'] for node in networkx.shortest_path(g, 105486442, h_node)]
 
 summit_filename="/home/mark/git/chinese_postman/data/summit_all.osm"
 
-make_summit = lambda: cpl.make_graph(summit_filename, summit_fixes)
+make_summit = lambda: cpl.make_graphs(summit_filename, summit_fixes)
 
 if __name__ == '__main__':
-  g = cpl.make_graph(summit_filename, summit_fixes)
-  eulerian_graph = cpl.add_edges_for_euler(g)
-  cpl.get_and_format_circuit(eulerian_graph, 105432048)
+  pure_g, reduced_g = cpl.make_graphs(summit_filename, summit_fixes)
+  eulerian_graph = cpl.add_edges_for_euler(pure_g, reduced_g)
+  cpl.get_and_format_circuit(eulerian_graph, 105444248)
 
 
