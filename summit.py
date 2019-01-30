@@ -102,7 +102,7 @@ def summit_fixes(g):
 
 summit_filename="/home/mark/git/chinese_postman/data/summit_all.osm"
 
-make_summit = lambda: cpl.make_graphs(summit_filename, summit_fixes)
+make_summit = lambda: cpl.make_graphs([summit_filename], summit_fixes)
 
 if __name__ == '__main__':
   pure_g, reduced_g = cpl.make_graphs(summit_filename, summit_fixes)

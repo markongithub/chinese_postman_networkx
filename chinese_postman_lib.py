@@ -27,8 +27,14 @@ def default_purge(graph):
   # This is just the identity function. But it might get overridden.
   pass
 
-def make_graphs(filename, purge_func=default_purge):
-  pure_g = osmgraph.parse_file(filename).to_undirected()
+def make_graphs(filenames, purge_func=default_purge):
+  graphs = [osmgraph.parse_file(filename).to_undirected()
+             for filename in filenames]
+  accumulator = networkx.empty_graph()
+  for graph in graphs:
+    accumulator = networkx.compose(accumulator, graph)
+
+  pure_g = accumulator
 
   names = make_node_dict(pure_g)
   for n1 in pure_g:
