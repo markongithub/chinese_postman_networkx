@@ -53,6 +53,7 @@ def make_graphs(filenames, purge_func=default_purge):
   all_edge_names = set([g[n1][n2].get('name') for (n1, n2) in g.edges()])
   print "DEBUG: We are left with these %s streets: %s" % (len(all_edge_names), sorted(all_edge_names)
 )
+
   # If a node has been isolated, just remove it for efficiency.
   for n1 in list(g.nodes()):
     if len(g[n1]) == 0:
@@ -86,6 +87,8 @@ def make_node_dict(g):
     for n2 in g[n1]:
       if 'name' in g[n1][n2]:
         visible_name = g[n1][n2]['name']
+      elif 'highway' in g[n1][n2]:
+        visible_name = 'some %s' % g[n1][n2]['highway']
       else:
         visible_name = 'Whatever Street'
       adjacent_streets.append(visible_name)
@@ -114,6 +117,40 @@ def dead_ends(g):
     if degrees[node] == 1:
       values.append(node)
   return values
+
+def print_contiguous_streets(g):
+  names_to_nodes = {}
+  names_to_edges = {}
+  for (n1, n2) in g.edges():
+    name = get_edge_somehow(g, n1, n2).get('name')
+    if not name:
+      continue
+    if name not in names_to_nodes:
+      names_to_nodes[name] = set()
+    if name not in names_to_edges:
+      names_to_edges[name] = set()
+    names_to_nodes[name].add(n1)
+    names_to_nodes[name].add(n2)
+    names_to_edges[name].add((n1, n2))
+  for name in sorted(names_to_edges):
+    temp_graph = networkx.Graph()
+    temp_graph.add_nodes_from(names_to_nodes[name])
+    temp_graph.add_edges_from(names_to_edges[name])
+    if not networkx.is_connected(temp_graph):
+      print "%s is not entirely contiguous. It has %s components." % (name, len(list(networkx.connected_components(temp_graph))))
+      print "DEBUG: %s" % [intersections_from_street_component(g, component, name) for component in networkx.connected_components(temp_graph)]
+      print "DEBUG: %s" % [[(node, g.node[node].get('coordinate'), g.node[node]['pretty_name']) for node in component] for component in networkx.connected_components(temp_graph)]
+    else:
+      print "%s is totally contiguous." % name
+
+def intersections_from_street_component(g, component, name):
+  intersections = set()
+  for node in component:
+    streets = adjoining_streets(g, node)
+    for street in streets:
+      if street != name:
+        intersections.add(street)
+  return intersections
 
 def format_list(string_iterable):
   string_list = list(string_iterable)
